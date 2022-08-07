@@ -12,7 +12,7 @@ This example may be copied under the terms of the MIT license, see the LICENSE f
 
 // LED settings
 const int numLeds = 12; // CHANGE FOR YOUR SETUP
-const int numberOfChannels = numLeds * 3 * 2; // Total number of channels you want to receive (1 led = 3 channels)
+const int numberOfChannels = numLeds * 3 * 2 + 2; // Total number of channels you want to receive (1 led = 3 channels)
 const byte dataPin1 = 16;
 const byte dataPin2 = 17;
 CRGB leds[numLeds];
@@ -98,20 +98,58 @@ void initTest()
   FastLED.show();
 }
 
+
+uint8_t DMXdata[numberOfChannels];
+
+
+void rainbow(uint8_t startHue)
+{
+  uint8_t hueStep = 255/numLeds;
+  uint8_t hue = startHue;
+  for(int i=0; i < numLeds; i++){
+    hue += hueStep;
+    leds[i] = CHSV(hue, 255, 255);   
+    leds2[i] = CHSV(hue, 255, 255);   
+  }
+}
+
+uint8_t loopLocation = 0;
+
+void applyLEDs()
+{
+  loopLocation++;
+  // set brightness of the whole strip
+  FastLED.setBrightness(4);
+  FastLED.show();
+  if(DMXdata[numberOfChannels-2] < 5) {
+    // read data from dmx channels
+    for (int i = 0; i < (numberOfChannels-2)/ 3; i++)
+    {
+      int led = i;
+      if (led < numLeds)
+      {
+          leds[led] = CRGB(DMXdata[i * 3], DMXdata[i * 3 + 1], DMXdata[i * 3 + 2]);
+          //Serial.println(led);
+          //Serial.println(data[i*3]);
+      } else if(led < (numLeds*2)){
+          leds2[led-numLeds] = CRGB(DMXdata[i * 3], DMXdata[i * 3 + 1], DMXdata[i * 3 + 2]);
+       
+      }
+    }    
+  } else {
+    // custom effects
+    int effectSpeed = DMXdata[numberOfChannels-1];
+    delay(effectSpeed*4);
+    rainbow(loopLocation*8);
+  }
+  FastLED.show();
+  // Reset universeReceived to 0
+
+}
+
 void onDmxFrame(uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* data)
 {
-  // Serial.println("foo");
-  sendFrame = 1;
-  // set brightness of the whole strip
-  FastLED.setBrightness(2);
-  FastLED.show();
-
-  if (universe == 15)
-  {
-    //FastLED.setBrightness(data[0]);
-    FastLED.show();
-  }
-
+  int sendFrame=1;
   // range check
   if (universe < startUniverse)
   {
@@ -136,24 +174,15 @@ void onDmxFrame(uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* d
   }
 
   // read universe and put into the right part of the display buffer
-  for (int i = 0; i < length / 3; i++)
+  for (int i = 0; i < length; i++)
   {
-    int led = i + (index * 170);
-    if (led < numLeds)
-    {
-        leds[led] = CRGB(data[i * 3], data[i * 3 + 1], data[i * 3 + 2]);
-        //Serial.println(led);
-        //Serial.println(data[i*3]);
-    } else if(led < (numLeds*2)){
-        leds2[led-numLeds] = CRGB(data[i * 3], data[i * 3 + 1], data[i * 3 + 2]);
-     
+    if(i < numberOfChannels) {
+      DMXdata[i] = data[i];
     }
   }
 
   if (sendFrame)
   {
-    FastLED.show();
-    // Reset universeReceived to 0
     memset(universesReceived, 0, maxUniverses);
   }
 }
@@ -166,6 +195,14 @@ void setup()
   FastLED.addLeds<WS2812, dataPin1, GRB>(leds, numLeds);
   FastLED.addLeds<WS2812, dataPin2, GRB>(leds2, numLeds);
   initTest();
+  for (int i = 0; i < numberOfChannels; i++)
+  {
+    DMXdata[i] = 0;
+  }
+  DMXdata[numberOfChannels-2] = 10; //rainbow
+  DMXdata[numberOfChannels-1] = 58; //medium speed
+  
+
 
   memset(universesReceived, 0, maxUniverses);
   // this will be called for each packet received
@@ -176,4 +213,5 @@ void loop()
 {
   // we call the read function inside the loop
   artnet.read();
+  applyLEDs();
 }
