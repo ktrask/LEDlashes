@@ -113,39 +113,53 @@ void rainbow(uint8_t startHue)
   }
 }
 
+void setFromDmx(int loopIndex) {
+  for (int i = 0; i < (numberOfChannels-2)/ 3; i++)
+  {
+    int led = (i + loopIndex)%numLeds;
+    if (i < numLeds)
+    {
+        leds[led] = CRGB(DMXdata[i * 3], DMXdata[i * 3 + 1], DMXdata[i * 3 + 2]);
+        //Serial.println(led);
+        //Serial.println(data[i*3]);
+    } else if(i < (numLeds*2)){
+        leds2[led] = CRGB(DMXdata[i * 3], DMXdata[i * 3 + 1], DMXdata[i * 3 + 2]);
+     
+    }
+  }    
+}
+
 uint8_t loopLocation = 0;
 
 void applyLEDs()
 {
-  loopLocation++;
+  loopLocation = (loopLocation + 1) % 252;
   // set brightness of the whole strip
-  FastLED.setBrightness(4);
+  FastLED.setBrightness(3);
   FastLED.show();
   if(DMXdata[numberOfChannels-2] < 5) {
     // read data from dmx channels
-    for (int i = 0; i < (numberOfChannels-2)/ 3; i++)
-    {
-      int led = i;
-      if (led < numLeds)
-      {
-          leds[led] = CRGB(DMXdata[i * 3], DMXdata[i * 3 + 1], DMXdata[i * 3 + 2]);
-          //Serial.println(led);
-          //Serial.println(data[i*3]);
-      } else if(led < (numLeds*2)){
-          leds2[led-numLeds] = CRGB(DMXdata[i * 3], DMXdata[i * 3 + 1], DMXdata[i * 3 + 2]);
-       
-      }
-    }    
+    setFromDmx(0);
   } else {
     // custom effects
-    int effectSpeed = DMXdata[numberOfChannels-1];
+    int effectSpeed = 255-DMXdata[numberOfChannels-1];
     delay(effectSpeed*4);
-    rainbow(loopLocation*8);
+    if(DMXdata[numberOfChannels-2] < 10){
+      setFromDmx(loopLocation%numLeds);
+    } else if(DMXdata[numberOfChannels-2] < 15)
+    {
+      rainbow(loopLocation*8);
+    } else 
+    {
+      rainbow(loopLocation*8);
+    }
   }
   FastLED.show();
   // Reset universeReceived to 0
 
 }
+
+
 
 void onDmxFrame(uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* data)
 {
