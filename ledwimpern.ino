@@ -113,7 +113,7 @@ void rainbow(uint8_t startHue)
   }
 }
 
-void setFromDmx(int loopIndex) {
+void setPixelFromDmx(int loopIndex) {
   for (int i = 0; i < (numberOfChannels-2)/ 3; i++)
   {
     int led = (i + loopIndex)%numLeds;
@@ -128,6 +128,14 @@ void setFromDmx(int loopIndex) {
     }
   }    
 }
+void setColourFromDmx(int loopIndex) {
+  for (int i = 0; i < numLeds; i++)
+  {
+    leds[i] = CRGB(DMXdata[loopIndex * 3], DMXdata[loopIndex * 3 + 1], DMXdata[loopIndex * 3 + 2]);
+    leds2[i] = CRGB(DMXdata[(loopIndex+numLeds) * 3], DMXdata[(loopIndex+numLeds) * 3 + 1], DMXdata[(loopIndex+numLeds) * 3 + 2]);
+  }
+}
+
 
 uint8_t loopLocation = 0;
 
@@ -139,16 +147,19 @@ void applyLEDs()
   FastLED.show();
   if(DMXdata[numberOfChannels-2] < 5) {
     // read data from dmx channels
-    setFromDmx(0);
+    setPixelFromDmx(0);
   } else {
     // custom effects
     int effectSpeed = 255-DMXdata[numberOfChannels-1];
     delay(effectSpeed*4);
     if(DMXdata[numberOfChannels-2] < 10){
-      setFromDmx(loopLocation%numLeds);
+      setPixelFromDmx(loopLocation%numLeds);
     } else if(DMXdata[numberOfChannels-2] < 15)
     {
       rainbow(loopLocation*8);
+    } else if(DMXdata[numberOfChannels-2] < 20)
+    {
+      setColourFromDmx(loopLocation%numLeds);
     } else 
     {
       rainbow(loopLocation*8);
